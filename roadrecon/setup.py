@@ -4,7 +4,7 @@ setup(name='roadrecon',
       description='Azure AD recon for red/blue',
       author='Dirk-jan Mollema',
       author_email='dirkjan@dirkjanm.io',
-      url='https://github.com/dirkjanm/ROADtools/',
+      url='https://github.com/scopedsecurity/ROADtools/',
       license='MIT',
       classifiers=[
           'Intended Audience :: Information Technology',

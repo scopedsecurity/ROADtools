@@ -4,7 +4,7 @@ setup(name='roadtools',
       description='The Azure AD tooling framework',
       author='Dirk-jan Mollema',
       author_email='dirkjan@dirkjanm.io',
-      url='https://github.com/dirkjanm/ROADtools/',
+      url='https://github.com/scopedsecurity/ROADtools/',
       license='MIT',
       classifiers=[
           'Intended Audience :: Information Technology',

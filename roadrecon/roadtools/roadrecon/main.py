@@ -51,7 +51,14 @@ def main():
     # Construct gather module options (imported from gather module)
     gather_parser = subparsers.add_parser('gather', aliases=['dump'], help='Gather Azure AD information')
     getgatherargs(gather_parser)
-
+   
+    all_parser = subparsers.add_parser('all')
+    all_parser.add_argument('-u', '--username')
+    all_parser.add_argument('-p', '--password')
+    all_parser.add_argument('-d', '--database', action='store', default='roadrecon.db')
+    all_parser.add_argument('-f', '--tokenfile', action='store', default='.roadtools_auth')
+    all_parser.add_argument('--tokens_file', action='store', default='.roadtools_auth')
+    
     # Construct GUI options
     gui_parser = subparsers.add_parser('gui', help='Launch the web-based GUI')
     gui_parser.add_argument('-d',
@@ -110,17 +117,40 @@ def main():
         if res is False:
             return
         auth.save_tokens(args)
+
+        from roadtools.roadrecon.gather import main as gathermain
+        gathermain(args)
+
+        from roadtools.roadlib.metadef.database import User, Group, RoleDefinition, RoleAssignment
+        import roadtools.roadlib.metadef.database as database
+        session = database.get_session(database.init())
+        for user in session.query(User):
+            print(f'{user.userPrincipalName}')        
+
+
     elif args.command == 'gui':
         from roadtools.roadrecon.server import main as servermain
         check_database_exists(args.database)
         servermain(args)
     elif args.command == 'gather' or args.command == 'dump':
         from roadtools.roadrecon.gather import main as gathermain
-        gathermain(args)
+        gathermain({})
     elif args.command == 'plugin':
         # Dynamic import
         plugin_module = importlib.import_module('roadtools.roadrecon.plugins.{}'.format(args.plugin))
         check_database_exists(args.database)
         plugin_module.main(args)
+    #elif args.command == 'auth_and_dump':
+    #    auth.parse_args(args)
+    #    res = auth.get_tokens(args)
+    #    # Could probably be shortened but older versions of roadlib may
+    #    # return None and I just want to make sure that doesn't break here
+    #    if res is False:
+    #        return
+    #    auth.save_tokens(args)
+    #
+    #    from roadtools.roadrecon.gather import main as gathermain
+    #    gathermain(args)
+
 if __name__ == '__main__':
     main()

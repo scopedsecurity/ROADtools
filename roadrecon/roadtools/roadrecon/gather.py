@@ -67,9 +67,6 @@ async def dumphelper(url, method=requests.get):
                     objects = await req.json()
                 except json.decoder.JSONDecodeError:
                     # In case we break Azure
-                    print(url)
-                    print(req.content)
-                    print('')
                     return
                 try:
                     nexturl = mknext(objects['odata.nextLink'], url)
@@ -232,6 +229,7 @@ class DataDumper(object):
                     parentname = parent.objectId
                 print('Non-existing child found on %s %s: %s' % (parent.__table__, parentname, objectid))
                 continue
+            
             getattr(parent, linkname).append(child)
             i += 1
             if i > 1000:
@@ -437,16 +435,13 @@ async def run(args):
     }
     if not checktoken():
         return
+    
     # Recreate DB
-
-    if args.skip_first_phase:
-        destroy_db = False
-    else:
-        destroy_db = True
+    destroy_db = True
 
     engine = database.init(destroy_db, dburl=dburl)
     dumper = DataDumper(tenantid, '1.61-internal', engine=engine)
-    if not args.skip_first_phase:
+    if True:
         async with aiohttp.ClientSession() as ahsession:
             print('Starting data gathering phase 1 of 2 (collecting objects)')
             dumper.ahsession = ahsession
@@ -462,7 +457,7 @@ async def run(args):
             # tasks.append(dumper.dump_object('domains', Domain))
             tasks.append(dumper.dump_object('directoryRoles', DirectoryRole))
             tasks.append(dumper.dump_object('roleDefinitions', RoleDefinition))
-            # tasks.append(dumper.dump_object('roleAssignments', RoleAssignment))
+            tasks.append(dumper.dump_object('roleAssignments', RoleAssignment))
             tasks.append(dumper.dump_object('contacts', Contact))
             # tasks.append(dumper.dump_object('getAvailableExtensionProperties', ExtensionProperty, method=ahsession.post))
             tasks.append(dumper.dump_object('oauth2PermissionGrants', OAuth2PermissionGrant))
@@ -470,15 +465,6 @@ async def run(args):
 
     Session = sessionmaker(bind=engine)
     dbsession = Session()
-
-    if args.skip_first_phase:
-        # Delete existing links to make sure we start with clean data
-        for table in database.Base.metadata.tables.keys():
-            if table.startswith('lnk_'):
-                dbsession.execute("DELETE FROM {0}".format(table))
-        dbsession.query(ApplicationRef).delete()
-        dbsession.query(RoleAssignment).delete()
-        dbsession.commit()
 
     # Mapping object, mapping type returned to Table and link name
     group_mapping = {
@@ -530,8 +516,6 @@ async def run(args):
         tasks.append(dumper.dump_object_expansion('servicePrincipals', ServicePrincipal, 'owners', 'owner', User, mapping=owner_mapping))
         tasks.append(dumper.dump_object_expansion('applications', Application, 'owners', 'owner', User, mapping=owner_mapping))
         tasks.append(dumper.dump_custom_role_members(RoleAssignment))
-        if args.mfa:
-            tasks.append(dumper.dump_mfa('users', User, method=ahsession.get))
         tasks.append(dumper.dump_each(ServicePrincipal, 'applicationRefs', ApplicationRef))
 
         await asyncio.gather(*tasks)
@@ -593,21 +577,12 @@ def main(args=None):
         if len(sys.argv) < 2:
             parser.print_help()
             sys.exit(1)
-    if args.tokens_stdin:
-        token = json.loads(sys.stdin.read())
-    else:
-        with open(args.tokenfile, 'r') as infile:
-            token = json.load(infile)
-    if not ':/' in args.database:
-        if args.database[0] != '/':
-            dburl = 'sqlite:///' + os.path.join(os.getcwd(), args.database)
-        else:
-            dburl = 'sqlite:///' + args.database
-    else:
-        dburl = args.database
-
+    
+    with open(args.tokenfile, 'r') as infile:
+        token = json.load(infile)
+    
+    dburl = 'sqlite:///' + 'roadrecon.db'
     headers['Authorization'] = '%s %s' % (token['tokenType'], token['accessToken'])
-
     seconds = time.perf_counter()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run(args))

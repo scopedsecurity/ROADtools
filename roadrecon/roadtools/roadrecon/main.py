@@ -1,6 +1,7 @@
 import argparse
 import sys
 import os
+import json
 import importlib
 from roadtools.roadlib.auth import Authentication
 from roadtools.roadrecon.gather import getargs as getgatherargs
@@ -124,9 +125,11 @@ def main():
         from roadtools.roadlib.metadef.database import User, Group, RoleDefinition, RoleAssignment
         import roadtools.roadlib.metadef.database as database
         session = database.get_session(database.init())
+        users_dict = {}
         for user in session.query(User):
-            print(f'{user.userPrincipalName}')        
+            users_dict[user.userPrincipalName] = {'groups': [g.displayName for g in user.memberOf], 'roles': [r.displayName for r in user.memberOfRole]}
 
+        print(json.dumps(users_dict))       
 
     elif args.command == 'gui':
         from roadtools.roadrecon.server import main as servermain

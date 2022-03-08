@@ -125,9 +125,18 @@ def main():
         from roadtools.roadlib.metadef.database import User, Group, RoleDefinition, RoleAssignment
         import roadtools.roadlib.metadef.database as database
         session = database.get_session(database.init())
+        
         users_dict = {}
         for user in session.query(User):
-            users_dict[user.userPrincipalName] = {'groups': [g.displayName for g in user.memberOf], 'roles': [r.displayName for r in user.memberOfRole]}
+            if user.onPremisesDistinguishedName:
+                on_prem_domain = '.'.join([ i.replace('dc=', '') for i in user.onPremisesDistinguishedName.lower().split(',') if 'dc=' in i ])
+            else:
+                on_prem_domain = None
+
+            on_prem_groups = [ g.displayName for g in user.memberOf if g.onPremisesSecurityIdentifier ]
+            cloud_groups = [ g.displayName for g in user.memberOf if (g.cloudSecurityIdentifier and not g.onPremisesSecurityIdentifier) ]
+            roles = [ r.displayName for r in user.memberOfRole ]
+            users_dict[user.userPrincipalName] = {'cloud_groups': cloud_groups, 'on_prem_groups': on_prem_groups, 'roles': roles, 'domain': on_prem_domain}
 
         print(json.dumps(users_dict))       
 
